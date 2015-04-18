@@ -1,0 +1,227 @@
+#! /usr/bin/env python
+
+#chocaholics anonymous application
+#12/2014
+
+#references:
+#http://stackoverflow.com/questions/3966187/how-to-do-a-multi-level-cli-in-python
+
+import readline
+import cmd
+import db
+import os
+
+class Cmdline(cmd.Cmd):
+  #def __init__(self):
+  #  print("ffoooo")
+  #  database = db.DB()
+  #  database.load_db()
+  #  database.test_populate()
+  prompt = "ChocAn> "
+
+  def preloop(self):
+    print("ChocAn Demo Mode Currently running; \nManager Account - Username: manager, Password: manager \nProvider Account - Username: provider, Password: provider")
+    print("Type help for options")
+    #database = db.DB()
+    #database.load_db()
+    #database.test_populate() #populate with new data
+
+    #super(Cmdline,self).preloop()
+
+  def postloop(self):
+    database.close_db()
+
+  def do_login(self,args):
+    username = raw_input("username: ")
+    password = raw_input("password: ")
+    auth = database.auth(username,password)
+
+    if(auth == 0):
+      print "Invalid Credentials. Please try again."
+
+    elif(auth == 1):
+      #is provider
+      sub = isLoggedInAsProvider()
+      sub.cmdloop()
+
+    elif(auth == 2):
+      #is manager
+      sub = isLoggedInAsManager()
+      sub.cmdloop()
+  
+  def do_exit(self,args):
+    print("Exiting ChocAn Terminal Application...")
+    return True
+
+  def do_EOF(self,args):
+    return True
+
+class manageMembers(cmd.Cmd,object):
+  prompt = "ChocAn Member Services> "
+
+  def do_add_service_for_member(self,args):
+    """charge a member for a service"""
+    mid = int(raw_input("Member's ID #: "))
+    servicecode = int(raw_input("Service code #: "))
+    database.add_service(mid,servicecode)
+    return
+
+  def do_provider_directory(self,args):
+    """list provider directory"""
+    print(database.get_providerdir())
+    return
+
+  def do_add_member(self,args):
+    """Add a member"""
+    name = raw_input("Member's name: ")
+    address = raw_input("Member's address: ")
+    city = raw_input("Member's city: ")
+    state = raw_input("Member's state: ")
+    zipcode = int(raw_input("Member's zipcode: "))
+    mid = database.add_member(name,address,city,state,zipcode)
+    print("Member's assigned member ID #: %s" % mid)
+    return
+
+  def do_suspend_member(self,args):
+    """Suspend a member"""
+    mid = int(raw_input("Member's ID #: "))
+    database.suspend_member(mid)
+    return
+
+  def do_lookup_member(self,args):
+    """lookup a member"""
+    mid = int(raw_input("Member's ID #: "))
+    data = database.get_member(mid)
+    #type in style 1|Ben|1234 Your Street|Portland|OR|12334|0
+    mid = data[0]
+    name = str(data[1])
+    address = str(data[2])
+    city = str(data[3])
+    state = str(data[4])
+    zipcode = str(data[5])
+    suspended = bool(data[6])
+    print('''MID: {0}
+    Name: {1}
+    Address: {2}
+    City: {3}
+    State: {4}
+    Zipcode: {5}
+    Suspended: {6}'''.format(mid,name,address,city,state,zipcode,suspended))
+    return
+
+  def do_memberfees(self,args):
+    """display fees associated with a member"""
+    mid = int(raw_input("MID: "))
+    fees = database.get_service_costs(mid)
+    print("Member #: {0}, Fees: {1}".format(mid,fees))
+    return
+
+  def do_exit(self,args):
+    return True
+  def do_EOF(self,args):
+    return True
+
+class reports(manageMembers):
+  #TODO ALL OF THIS
+  #lots of processing to compile and write to disk
+  prompt = "ChocAn Report Services> "
+
+class isLoggedInAsManager(reports):
+  prompt = "ChocAn Manager> "
+  #inherits report class functions
+  def do_add_user(self,args):
+    """add a user to the Chocan system"""
+    username = raw_input("Username: ")
+    password = raw_input("Password: ")
+    access = raw_input("Access Level: [1 = provider, 2 = manager]")
+    database.add_user(username, password, access)
+    return
+
+  def do_add_provider(self,args):
+    """add a provider to the system"""
+    name = raw_input("Provider's name: ")
+    address = raw_input("Provider's address: ")
+    city = raw_input("Provider's city: ")
+    state = raw_input("Provider's state: ")
+    zipcode = int(raw_input("Provider's zipcode: "))
+    pid = database.add_provider(name,address,city,state,zipcode)
+    print("Provider's assigned provider ID #: %s" % pid)
+    return
+
+  def do_delete_provider(self,args):
+    """delete a provider from the system"""
+    pid = int(raw_input("Providers ID #: "))
+    database.delete_provider(pid)
+    return
+
+  def do_get_providers(self,args):
+    """get a list of providers from the system"""
+    print(database.get_providers())
+    return
+
+  def do_lookup_provider(self,args):
+    """get all info about a provider from the system"""
+    id = int(raw_input("Providers's ID #: "))
+    data = database.lookup_provider(id)
+    id = data[0]
+    name = str(data[1])
+    address = str(data[2])
+    city = str(data[3])
+    state = str(data[4])
+    zipcode = str(data[5])
+    print('''Provider ID#: {0}
+    Name: {1}
+    Address: {2}
+    City: {3}
+    State: {4}
+    Zipcode: {5}'''.format(id,name,address,city,state,zipcode))
+    return
+
+   
+  
+  def do_delete_user(self,args):
+    """delete a user from the chocan system"""
+    username = raw_input("Username: ")
+    database.delete_user(username)
+    return
+
+  def do_add_to_providerdirectory(self,args):
+    """add an item to the provider directory"""
+    service = raw_input("Service name: ")
+    fee = float(raw_input("Service fee: "))
+    database.add_providerdir_item(service,fee)
+    return
+
+  def do_remove_from_providerdirectory(self,args):
+    """remove an item from the provider directory"""
+    id = raw_input("Service ID#: ")
+    database.remove_providerdir_item(id)
+    return
+
+  def do_exit(self, args):
+    return True
+
+
+class isLoggedInAsProvider(manageMembers):
+  prompt = "ChocAn Provider> "
+
+  def do_exit(self, args):
+    return True
+
+############run
+
+try:
+  database = db.DB()
+  database.load_db()
+  database.test_populate()
+
+  #start cmdline interface
+  shell = Cmdline()
+  shell.cmdloop()
+
+  database.close_db()
+
+  #localdb.close_db()
+except KeyboardInterrupt:
+  print "Exiting the ChocAn Application..."
+
